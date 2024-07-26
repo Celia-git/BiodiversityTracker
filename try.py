@@ -2,10 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy
 
-array = numpy.array(['Species of Concern', 'Endangered', 'Threatened', 'In Recovery'],
-      dtype='<U18')
-
-
 
 data = [["Bryce", 20, 25, 35, 100],
         ["Big Bend", 2, 20, 300, 150],
@@ -16,8 +12,30 @@ data = [["Bryce", 20, 25, 35, 100],
 df = pd.DataFrame(data, columns=["Park Name", "Endangered", "Threatened", "Concern", "Recovery"])
 
 
-df.plot(x="Park Name", y=["Endangered", "Threatened", "Concern", "Recovery"],
+axes = df.plot(x="Park Name", y=["Endangered", "Threatened", "Concern", "Recovery"],
         kind="bar", figsize=(10, 10))
- 
-# Display plot
+
+
+# ADD BAR LABELS
+# DIVIDE INTO SUBPLOTS BY SPECIES TYPE
+
+axes.tick_params(axis='x', labelrotation=0)
+axes.set_ylabel("Recorded Observations")
+axes.set_title("Observations of All Species by Conservation State at Each Participating Park")
+
+ax = df.plot.bar(x="hello")
+
 plt.show()
+
+'''
+
+animal_names = ['Lion', 'Gazelle', 'Cheetah']
+mph_speed = [50, 60, 75]
+
+fig, ax = plt.subplots()
+bar_container = ax.bar(animal_names, mph_speed)
+ax.set(ylabel='speed in MPH', title='Running speeds', ylim=(0, 80))
+ax.bar_label(bar_container, fmt=lambda x: f'{x * 1.61:.1f} km/h')
+
+plt.show()
+'''

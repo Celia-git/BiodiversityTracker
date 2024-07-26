@@ -57,6 +57,7 @@ def get_observations_by_conservation(obs_df, species_df):
     
     # Get list of each park name and list of each conservation status
     all_parks = sqldf("""SELECT DISTINCT park_name FROM obs_df""").values.tolist()
+    park_list = numpy.array(all_parks).ravel()
     all_cons = sqldf("""SELECT DISTINCT conservation_status FROM species_df WHERE NOT conservation_status=''""").values.tolist()
     all_cons = numpy.array(all_cons).ravel()
     labels = numpy.concatenate((all_cons[:0], ["Park Name"], all_cons[0:]))
@@ -82,9 +83,14 @@ def get_observations_by_conservation(obs_df, species_df):
             park[i] = total_observations
             i += 1
 
-    df = pd.DataFrame(all_parks, columns=labels) 
-    df.plot(x="Park Name", y = all_cons, kind="bar", figsize=(10, 10))
-    plt.show()
+    df = pd.DataFrame(all_parks, columns=labels, index = park_list) 
+    axes = df.plot(x="Park Name", y = all_cons, kind="bar", figsize=(10, 10))
+    
+    axes.tick_params(axis='x', labelrotation=0)
+    axes.set_ylabel("Recorded Observations")
+    axes.set_title("Observations of All Species by Conservation State at Each Participating Park")
+    
+    plt.show(block=True)
 
 
 if __name__=="__main__":
