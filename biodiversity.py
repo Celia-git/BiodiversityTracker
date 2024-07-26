@@ -1,5 +1,6 @@
 from pandasql import sqldf
 import numpy
+import math
 import warnings
 import pandas as pd
 import matplotlib.pyplot as plt # type: ignore
@@ -49,7 +50,7 @@ def sort_species_by_park(df):
         data[park_name] = sqldf(find_name_query % (park_name))
     return data
         
-# Return dataframe: conservation level, amount of observations for all species, organized by park
+# Show graph based on dataframe: conservation level, amount of observations for all species, organized by park, subplots by category
 def get_observations_by_conservation(obs_df, species_df):
     
     # Get pandas df of conservation status, scientific name 
@@ -58,37 +59,63 @@ def get_observations_by_conservation(obs_df, species_df):
     # Get list of each park name and list of each conservation status
     all_parks = sqldf("""SELECT DISTINCT park_name FROM obs_df""").values.tolist()
     park_list = numpy.array(all_parks).ravel()
-    all_cons = sqldf("""SELECT DISTINCT conservation_status FROM species_df WHERE NOT conservation_status=''""").values.tolist()
+    all_cons = sqldf("""SELECT DISTINCT conservation_status FROM species_df WHERE NOT conservation_status='' AND NOT conservation_status='Species of Concern'""").values.tolist()
     all_cons = numpy.array(all_cons).ravel()
+    
+    # Get all categories of species, then combine vascular/nonvascular plants into one category
+    categories = sqldf("""SELECT DISTINCT category FROM species_df WHERE NOT (category='Reptile' OR category='Amphibian')""").values.tolist()
+    categories = numpy.array(categories).ravel()
+    categories = categories[:-2]
+    categories = numpy.append(categories, "Plant")
     labels = numpy.concatenate((all_cons[:0], ["Park Name"], all_cons[0:]))
     
     # Convert all_parks to 2D array with each park associated with 0 values for each conservation status
     for park in all_parks:
         park += [0] * len(all_cons)
 
-   # Populate all_parks with amount of observations at each conservation level
-    for park in all_parks:
-        i = 1
-        for cons in all_cons:
-            
-            names = sqldf("""SELECT scientific_name FROM species_df WHERE conservation_status='%s'""" % (cons)).values.tolist()
-            names = numpy.array(names).ravel()
-            # Add up observations for each of these names at each park
-            total_observations = 0
-            for name in names:
-                observations = sqldf("""SELECT observations FROM obs_df WHERE scientific_name='%s' and park_name='%s'""" % (name, park[0])).values.tolist()
-                observations = numpy.array(observations).ravel()
-                for o in observations:
-                   total_observations += int(o)
-            park[i] = total_observations
-            i += 1
+    dataframes = dict(zip(categories, [0] * len(categories)))
+    # Create a new dataframe for each category
+    for category in categories:
 
-    df = pd.DataFrame(all_parks, columns=labels, index = park_list) 
-    axes = df.plot(x="Park Name", y = all_cons, kind="bar", figsize=(10, 10))
-    
-    axes.tick_params(axis='x', labelrotation=0)
-    axes.set_ylabel("Recorded Observations")
-    axes.set_title("Observations of All Species by Conservation State at Each Participating Park")
+        # Populate all_parks with amount of observations at each conservation level
+        for park in all_parks:
+            i = 1
+            for cons in all_cons:
+                
+                names = sqldf(f"""SELECT scientific_name FROM species_df WHERE conservation_status='{cons}' AND category LIKE'%{category}%'""").values.tolist()
+                names = numpy.array(names).ravel()
+                # Add up observations for each of these names at each park
+                total_observations = 0
+                for name in names:
+                    observations = sqldf("""SELECT observations FROM obs_df WHERE scientific_name='%s' and park_name='%s'""" % (name, park[0])).values.tolist()
+                    observations = numpy.array(observations).ravel()
+                    for o in observations:
+                        total_observations += int(o)
+                park[i] = total_observations
+                i += 1
+
+        df = pd.DataFrame(all_parks, columns=labels, index = park_list) 
+        dataframes[category] = df
+
+    # Plot the data
+    row, col = (0, 0)
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+
+    fig.suptitle("Observations of All Species by Conservation State and Park")
+
+    # Plot the subplots
+    for category in dataframes.keys():
+        ax = axes[row, col]
+        dataframes[category].plot(title=category, y= all_cons, kind="bar", ax=ax)
+        
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=-15)
+        ax.set_xticklabels(park_list, fontsize=6)
+        ax.set_ylabel("Observations")
+        if col==1:
+            row+=1
+            col=0
+        else:
+            col += 1
     
     plt.show(block=True)
 
